@@ -4,13 +4,29 @@ import { parseCSV, reconcileData } from './utils';
 import { ReconciliationItem, MatchStatus, DashboardStats } from './types';
 import { GoogleGenAI, Type } from "@google/genai";
 
+// --- Icons Components ---
+const BankIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4 8 4v14M5 10a17 17 0 0 1 14 0M10 21v-8a2 2 0 0 1 2-2h4"/></svg>
+);
+const BookIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+);
+const CheckIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+);
+const AlertIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+);
+const SparklesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 9h4"/><path d="M3 5h4"/></svg>
+);
+
 const App: React.FC = () => {
   const [items, setItems] = useState<ReconciliationItem[]>([]);
   const [filter, setFilter] = useState<MatchStatus | 'ALL'>('ALL');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const aiApiKey = import.meta.env.VITE_API_KEY;
+  const aiApiKey = import.meta.env?.VITE_API_KEY;
   
-  // Initialize Data
   useEffect(() => {
     const bankData = parseCSV(SAMPLE_BANK_CSV);
     const bookData = parseCSV(SAMPLE_BOOK_CSV);
@@ -18,7 +34,6 @@ const App: React.FC = () => {
     setItems(reconciled);
   }, []);
 
-  // Calculate Stats
   const stats: DashboardStats = useMemo(() => {
     const totalBank = items.reduce((sum, item) => sum + (item.bankTransaction?.total_amount || 0), 0);
     const totalBook = items.reduce((sum, item) => sum + (item.bookEntry?.amount || 0), 0);
@@ -41,7 +56,6 @@ const App: React.FC = () => {
     return items.filter(item => item.status === filter);
   }, [items, filter]);
 
-  // AI Analysis Handler
   const handleAnalyzeAI = async () => {
     if (!aiApiKey) {
         alert("กรุณาตั้งค่า VITE_API_KEY ในไฟล์ .env ของคุณ");
@@ -52,7 +66,6 @@ const App: React.FC = () => {
     try {
         const ai = new GoogleGenAI({ apiKey: aiApiKey });
         
-        // Filter items that need analysis (Discrepancies and Missing)
         const itemsToAnalyze = items.filter(i => 
             i.status === MatchStatus.DISCREPANCY_AMOUNT || 
             i.status === MatchStatus.MISSING_IN_BOOK ||
@@ -65,7 +78,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // Limit payload size for demo purposes (take top 20 problematic items)
         const payloadItems = itemsToAnalyze.slice(0, 20).map(i => ({
             id: i.id,
             status: i.status,
@@ -81,7 +93,7 @@ const App: React.FC = () => {
         You are an expert financial auditor. Review these reconciliation discrepancies between Bank Statement and General Ledger (Book).
         For each item, identify the likely cause of the error (e.g., Typo, Digit Transposition, Missing VAT recording, Timing difference).
         Return a JSON object where the keys are the item IDs and values are objects with:
-        - analysis: Brief explanation of the error.
+        - analysis: Brief explanation of the error (max 10 words).
         - suggestedFix: Actionable recommendation (e.g., "Update Book amount to X").
         - confidence: Number 0-1 indicating confidence level.
         
@@ -115,7 +127,6 @@ const App: React.FC = () => {
 
         const result = JSON.parse(response.text);
         
-        // Merge results back into items
         const newItems = [...items];
         if (result.analysisResults) {
             result.analysisResults.forEach((res: any) => {
@@ -126,7 +137,7 @@ const App: React.FC = () => {
                         aiAnalysis: res.analysis,
                         suggestedFix: res.suggestedFix,
                         confidence: res.confidence,
-                        status: MatchStatus.POTENTIAL_ERROR // Upgrade status to indicate AI found something
+                        status: MatchStatus.POTENTIAL_ERROR
                     };
                 }
             });
@@ -142,140 +153,176 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-20">
+      
+      {/* Decorative Background */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-slate-900 -z-10"></div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
         
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">SmartRec 🤖</h1>
-            <p className="text-slate-500">AI-Powered Financial Reconciliation Dashboard</p>
+            <div className="flex items-center gap-2 mb-1">
+                <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/30">
+                    <SparklesIcon />
+                </div>
+                <h1 className="text-3xl font-bold text-white tracking-tight">SmartRec</h1>
+            </div>
+            <p className="text-slate-300 font-light">AI-Powered Financial Reconciliation Dashboard</p>
           </div>
           <button 
             onClick={handleAnalyzeAI}
             disabled={isAnalyzing}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium shadow-lg transition-all
-                ${isAnalyzing ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-xl'}`}
+            className={`group relative flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium shadow-xl transition-all duration-300
+                ${isAnalyzing 
+                    ? 'bg-slate-700 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:scale-105 hover:shadow-indigo-500/40'}`}
           >
             {isAnalyzing ? (
                 <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-5 w-5 text-white/70" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Analyzing with Gemini...
+                    <span>Processing...</span>
                 </>
             ) : (
                 <>
-                    <span>✨ Detect Anomalies with AI</span>
+                    <SparklesIcon />
+                    <span>AI Anomaly Detection</span>
                 </>
             )}
+            {!isAnalyzing && <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all"></div>}
           </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <p className="text-sm font-medium text-slate-500">Total Bank Amount</p>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalBank.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <p className="text-sm font-medium text-slate-500">Total Book Amount</p>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalBook.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <p className="text-sm font-medium text-slate-500">Match Rate</p>
-                <div className="flex items-end gap-2">
-                    <p className="text-2xl font-bold text-emerald-600">{stats.accuracy.toFixed(1)}%</p>
-                    <p className="text-sm text-slate-400 mb-1">({stats.matchedCount} items)</p>
-                </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <p className="text-sm font-medium text-slate-500">Discrepancies</p>
-                <p className="text-2xl font-bold text-red-600">{stats.discrepancyCount + stats.missingInBookCount}</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatsCard 
+                title="Total Bank Amount" 
+                value={stats.totalBank.toLocaleString('th-TH', { minimumFractionDigits: 2 })} 
+                icon={<BankIcon />}
+                theme="blue"
+            />
+            <StatsCard 
+                title="Total Book Amount" 
+                value={stats.totalBook.toLocaleString('th-TH', { minimumFractionDigits: 2 })} 
+                icon={<BookIcon />}
+                theme="indigo"
+            />
+            <StatsCard 
+                title="Match Rate" 
+                value={`${stats.accuracy.toFixed(1)}%`} 
+                subValue={`${stats.matchedCount} transactions`}
+                icon={<CheckIcon />}
+                theme="emerald"
+            />
+            <StatsCard 
+                title="Discrepancies" 
+                value={`${stats.discrepancyCount + stats.missingInBookCount + stats.missingInBookCount}`}
+                subValue="Action required"
+                icon={<AlertIcon />}
+                theme="rose"
+            />
         </div>
 
         {/* Main Content Area */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-fade-in">
             {/* Filter Tabs */}
-            <div className="border-b border-slate-200 flex p-4 gap-2 overflow-x-auto">
-                {[
-                    { key: 'ALL', label: 'All Transactions' },
-                    { key: MatchStatus.MATCHED, label: 'Matched', color: 'bg-emerald-100 text-emerald-700' },
-                    { key: MatchStatus.DISCREPANCY_AMOUNT, label: 'Amount Mismatch', color: 'bg-yellow-100 text-yellow-700' },
-                    { key: MatchStatus.MISSING_IN_BOOK, label: 'Missing in Book', color: 'bg-red-100 text-red-700' },
-                    { key: MatchStatus.MISSING_IN_BANK, label: 'Missing in Bank', color: 'bg-orange-100 text-orange-700' },
-                    { key: MatchStatus.POTENTIAL_ERROR, label: 'AI Detected Errors', color: 'bg-purple-100 text-purple-700' },
-                ].map((tab: any) => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setFilter(tab.key)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors
-                            ${filter === tab.key 
-                                ? 'bg-slate-900 text-white' 
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+            <div className="border-b border-slate-100 p-4 overflow-x-auto">
+                <div className="flex gap-2">
+                    {[
+                        { key: 'ALL', label: 'All Transactions' },
+                        { key: MatchStatus.MATCHED, label: 'Matched' },
+                        { key: MatchStatus.DISCREPANCY_AMOUNT, label: 'Amount Mismatch' },
+                        { key: MatchStatus.MISSING_IN_BOOK, label: 'Missing in Book' },
+                        { key: MatchStatus.MISSING_IN_BANK, label: 'Missing in Bank' },
+                        { key: MatchStatus.POTENTIAL_ERROR, label: '✨ AI Insights' },
+                    ].map((tab: any) => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setFilter(tab.key)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap
+                                ${filter === tab.key 
+                                    ? 'bg-slate-800 text-white shadow-md transform scale-105' 
+                                    : 'bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent hover:border-slate-200'}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto custom-scrollbar" style={{ maxHeight: '600px' }}>
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10">
+            <div className="overflow-x-auto custom-scrollbar" style={{ maxHeight: '650px' }}>
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th className="px-6 py-3 font-medium">Status</th>
-                            <th className="px-6 py-3 font-medium">Invoice / Ref</th>
-                            <th className="px-6 py-3 font-medium text-right">Bank Amount</th>
-                            <th className="px-6 py-3 font-medium text-right">Book Amount</th>
-                            <th className="px-6 py-3 font-medium text-right">Difference</th>
-                            <th className="px-6 py-3 font-medium">AI Insight</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Invoice / Ref</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Bank Amount</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Book Amount</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Difference</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Analysis</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-50">
                         {filteredItems.map(item => (
-                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                            <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
                                 <td className="px-6 py-4">
                                     <StatusBadge status={item.status} />
                                 </td>
-                                <td className="px-6 py-4 font-mono text-slate-600">
-                                    {item.bankTransaction?.invoice_number || item.bookEntry?.description || '-'}
+                                <td className="px-6 py-4">
+                                    <span className="font-mono text-sm text-slate-700 font-medium">
+                                        {item.bankTransaction?.invoice_number || item.bookEntry?.description || '-'}
+                                    </span>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                        {item.id.split('-')[0]} ID: {item.id.split('-')[2]}
+                                    </div>
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono">
-                                    {item.bankTransaction 
-                                        ? item.bankTransaction.total_amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })
-                                        : <span className="text-slate-300">-</span>}
+                                <td className="px-6 py-4 text-right">
+                                    {item.bankTransaction ? (
+                                        <span className="font-mono text-sm text-slate-600">
+                                            {item.bankTransaction.total_amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    ) : <span className="text-slate-300">-</span>}
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono">
-                                    {item.bookEntry 
-                                        ? item.bookEntry.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })
-                                        : <span className="text-slate-300">-</span>}
+                                <td className="px-6 py-4 text-right">
+                                    {item.bookEntry ? (
+                                        <span className="font-mono text-sm text-slate-600">
+                                            {item.bookEntry.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    ) : <span className="text-slate-300">-</span>}
                                 </td>
-                                <td className="px-6 py-4 text-right font-mono">
-                                    {item.difference > 0 ? (
-                                        <span className="text-red-500 font-semibold">
+                                <td className="px-6 py-4 text-right">
+                                    {item.difference > 0.01 ? (
+                                        <span className="font-mono text-sm font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded">
                                             {item.difference.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                         </span>
                                     ) : (
-                                        <span className="text-slate-300">-</span>
+                                        <span className="text-emerald-500 text-xs font-medium">Balanced</span>
                                     )}
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 min-w-[280px]">
                                     {item.aiAnalysis ? (
-                                        <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg max-w-sm">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-bold text-purple-700 bg-purple-200 px-1.5 py-0.5 rounded">
-                                                    {(item.confidence! * 100).toFixed(0)}% Conf
+                                        <div className="relative bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 p-3 rounded-xl shadow-sm">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <SparklesIcon />
+                                                <span className="text-xs font-bold text-violet-700">
+                                                    AI Suggestion ({(item.confidence! * 100).toFixed(0)}%)
                                                 </span>
-                                                <span className="text-xs text-purple-800 font-medium">AI Suggestion</span>
                                             </div>
-                                            <p className="text-xs text-slate-700 mb-1">{item.aiAnalysis}</p>
-                                            <p className="text-xs font-semibold text-emerald-600">➜ Fix: {item.suggestedFix}</p>
+                                            <p className="text-xs text-slate-600 leading-relaxed mb-2">{item.aiAnalysis}</p>
+                                            <div className="flex items-start gap-1.5 bg-white/60 p-1.5 rounded-lg border border-violet-100/50">
+                                                <span className="text-[10px] uppercase font-bold text-emerald-600 mt-0.5">Fix:</span>
+                                                <span className="text-xs font-medium text-slate-800">{item.suggestedFix}</span>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <span className="text-slate-400 text-xs">-</span>
+                                        <span className="text-slate-300 text-xs italic group-hover:text-slate-400 transition-colors">
+                                            No analysis available
+                                        </span>
                                     )}
                                 </td>
                             </tr>
@@ -283,8 +330,11 @@ const App: React.FC = () => {
                     </tbody>
                 </table>
                 {filteredItems.length === 0 && (
-                    <div className="p-12 text-center text-slate-400">
-                        No transactions found for this filter.
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <div className="bg-slate-50 p-4 rounded-full mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </div>
+                        <p>No transactions found for this filter.</p>
                     </div>
                 )}
             </div>
@@ -294,21 +344,47 @@ const App: React.FC = () => {
   );
 };
 
+// --- Sub-components ---
+
+const StatsCard = ({ title, value, subValue, icon, theme }: any) => {
+    const themeStyles: any = {
+        blue: "bg-blue-50 text-blue-600 border-blue-100",
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+        rose: "bg-rose-50 text-rose-600 border-rose-100"
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-100 relative overflow-hidden">
+            <div className="flex justify-between items-start mb-4">
+                <div className={`p-3 rounded-xl ${themeStyles[theme]} bg-opacity-50`}>
+                    {React.cloneElement(icon, { className: "w-6 h-6" })}
+                </div>
+            </div>
+            <div>
+                <p className="text-sm font-medium text-slate-400 mb-1">{title}</p>
+                <h3 className="text-2xl font-bold text-slate-800 tracking-tight">{value}</h3>
+                {subValue && <p className={`text-xs mt-2 font-medium ${themeStyles[theme].replace('bg-', 'text-').split(' ')[1]}`}>{subValue}</p>}
+            </div>
+        </div>
+    );
+};
+
 const StatusBadge = ({ status }: { status: MatchStatus }) => {
-    switch (status) {
-        case MatchStatus.MATCHED:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">MATCHED</span>;
-        case MatchStatus.DISCREPANCY_AMOUNT:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">AMOUNT MISMATCH</span>;
-        case MatchStatus.MISSING_IN_BOOK:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">MISSING IN BOOK</span>;
-        case MatchStatus.MISSING_IN_BANK:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">MISSING IN BANK</span>;
-        case MatchStatus.POTENTIAL_ERROR:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">AI DETECTED</span>;
-        default:
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
-    }
+    const config = {
+        [MatchStatus.MATCHED]: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', text: 'Matched', icon: '●' },
+        [MatchStatus.DISCREPANCY_AMOUNT]: { color: 'bg-amber-50 text-amber-700 border-amber-200', text: 'Mismatch', icon: '⚠️' },
+        [MatchStatus.MISSING_IN_BOOK]: { color: 'bg-rose-50 text-rose-700 border-rose-200', text: 'Missing in Book', icon: '✕' },
+        [MatchStatus.MISSING_IN_BANK]: { color: 'bg-orange-50 text-orange-700 border-orange-200', text: 'Missing in Bank', icon: '?' },
+        [MatchStatus.POTENTIAL_ERROR]: { color: 'bg-violet-50 text-violet-700 border-violet-200', text: 'AI Detected', icon: '✨' },
+    }[status] || { color: 'bg-gray-100 text-gray-700', text: status, icon: '•' };
+
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
+            <span className="text-[10px]">{config.icon}</span>
+            {config.text}
+        </span>
+    );
 }
 
 export default App;
