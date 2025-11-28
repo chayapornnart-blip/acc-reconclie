@@ -25,6 +25,8 @@ const App: React.FC = () => {
   const [items, setItems] = useState<ReconciliationItem[]>([]);
   const [filter, setFilter] = useState<MatchStatus | 'ALL'>('ALL');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Safely access environment variable
   const aiApiKey = import.meta.env?.VITE_API_KEY;
   
   useEffect(() => {
@@ -64,7 +66,7 @@ const App: React.FC = () => {
 
     setIsAnalyzing(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: aiApiKey });
+        const ai = new GoogleGenAI({ apiKey: aiApiKey as string });
         
         const itemsToAnalyze = items.filter(i => 
             i.status === MatchStatus.DISCREPANCY_AMOUNT || 
