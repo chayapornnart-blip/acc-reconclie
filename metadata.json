@@ -1,0 +1,5 @@
+{
+  "name": "SmartRec - AI Financial Reconciliation",
+  "description": "An intelligent financial reconciliation dashboard that utilizes algorithmic matching and Gemini AI to detect anomalies, reconcile General Ledger with Bank Statements, and suggest smart fixes for human errors.",
+  "requestFramePermissions": []
+}
